@@ -4,12 +4,12 @@ library(readxl)
 library(carData)
 
 
-dim(Database_TRG_anonymized_06_03_22_Cliniche)
-n <- dim(Database_TRG_anonymized_06_03_22_Cliniche)[1]
-p <- dim(Database_TRG_anonymized_06_03_22_Cliniche)[2]
+dim(DB_TGR_finale_Cliniche)
+n <- dim(DB_TGR_finale_Cliniche)[1]
+p <- dim(DB_TGR_finale_Cliniche)[2]
 
 
-DB_cliniche2<-na.omit(Database_TRG_anonymized_06_03_22_Cliniche)
+DB_cliniche2<-na.omit(DB_TGR_finale_Cliniche)
 
 DB_cliniche2_label<-DB_cliniche2[,1:4]
 DB_cliniche2<-DB_cliniche2[,-(1:4)]
@@ -20,6 +20,8 @@ DB_cliniche2_num<-DB_cliniche2[,-c(2,4,5,6,8,11:18,19,21,22,23,24)]
   
 x11()
 pairs(DB_cliniche2_num)
+
+
   
 #exploration
 
@@ -28,13 +30,16 @@ boxplot(DB_cliniche2_num,col='gold')
 
 x11()
 
-boxplot(scale(x=DB_cliniche2_num,center = F, scale=F), las=2, col='gold',outline=FALSE)
+boxplot(scale(x=DB_cliniche2_num,center = F, scale=F), las=2, col='gold',outline=TRUE)
 
 ##c'è outlier in CEA, leviamolo
 
 
 
 NDB <- DB_cliniche2_num[-43,]
+
+x11()
+pairs(NDB)
 
 
 x11()
@@ -106,6 +111,115 @@ x11()
 biplot(picia)
 
 graphics.off()
+
+
+#scatterplot age-diametro mm
+x11()
+attach(mtcars)
+plot(DB_cliniche2$Age,DB_cliniche2$TRG, main="Scatterplot Example",
+     xlab="Age ", ylab="TGR ", pch=19)
+x11()
+attach(mtcars)
+plot(DB_cliniche2$Diametro_in_mm,DB_cliniche2$TRG, main="Scatterplot Example",
+     xlab="D in mm ", ylab="TRG ", pch=19)
+
+x11()
+attach(mtcars)
+plot(DB_cliniche2$Numero_metastasi,DB_cliniche2$TRG, main="Scatterplot Example",
+     xlab="Numero metastasi ", ylab="TRG ", pch=19)
+
+x11()
+attach(mtcars)
+plot(DB_cliniche2$Numero_metastasi,DB_cliniche2$TRG, main="Scatterplot Example",
+     xlab="Numero metastasi ", ylab="TRG ", pch=19)
+
+#istogrammi
+x11()
+hist(DB_cliniche2$Age, main="Titolo del grafico", ylab="label asse y", xlab="label asse x")
+
+
+DB_rad<-DB_TGR_finale[,29:76]
+
+#CONVENTIONAL
+x11()
+pairs(DB_rad[,1:7]) #ELIMINO QUARTILI COL 5,6,7
+x11()
+boxplot(scale(x=DB_rad[,1:7]),center = F, scale=F, las=2, col='gold',outline=TRUE)
+#HISTOGRAM
+x11()
+pairs(DB_rad[,8:13]) #ELIMINO KURTOIS E ENTROPY LOG10  COL 9,11
+x11()
+boxplot(scale(x=DB_rad[,8:13]),center = F, scale=F, las=2, col='gold',outline=TRUE)
+#SHAPE
+x11()
+pairs(DB_rad[,14:16])
+x11()
+boxplot(scale(x=DB_rad[,14:16]),center = F, scale=F, las=2, col='gold',outline=TRUE)
+#GLCM
+x11()
+pairs(DB_rad[,17:23])  #ELIMINO ENTROPY LOG10 COL 21
+x11()
+boxplot(scale(x=DB_rad[,17:23]),center = F, scale=F, las=2, col='gold',outline=TRUE)
+#GLRLM
+x11()
+pairs(DB_rad[,24:34]) #ELIMINO COL 30,31,,33,34
+x11()
+boxplot(scale(x=DB_rad[,24:34]),center = F, scale=F, las=2, col='gold',outline=TRUE)
+#NGLDM
+x11()
+pairs(DB_rad[,35:37])
+x11()
+boxplot(scale(x=DB_rad[,35:37]),center = F, scale=F, las=2, col='gold',outline=TRUE)
+#GLZLM
+x11()
+pairs(DB_rad[,38:48])  #ELIMINO 44,45,47
+x11()
+boxplot(scale(x=DB_rad[,38:48]),center = F, scale=F, las=2, col='gold',outline=TRUE)
+
+
+#elimino le variabili più correlate ad altre
+x<-c(5,6,7,9,11,21,30,31,33,34,44,45,47)
+DB_rad<-DB_rad[,-x]
+
+
+#pca 
+
+rad_picia<- princomp(DB_rad,cor=TRUE,scores = TRUE)
+summary(rad_picia)  #con 7 principal components ho 87% della variability spiegato
+
+load.tour <- rad_picia$loadings
+load.tour
+
+# graphical representation of the loadings of the first seven principal components
+x11()
+barplot(load.tour[,1], ylim = c(-1, 1), main=paste("PC",1))## bars proportional to loadings 
+x11()
+barplot(load.tour[,2], ylim = c(-1, 1), main=paste("PC",2))## bars proportional to loadings 
+x11()
+barplot(load.tour[,3], ylim = c(-1, 1), main=paste("PC",3))## bars proportional to loadings 
+x11()
+barplot(load.tour[,4], ylim = c(-1, 1), main=paste("PC",4))## bars proportional to loadings 
+x11()
+barplot(load.tour[,5], ylim = c(-1, 1), main=paste("PC",5))## bars proportional to loadings 
+x11()
+barplot(load.tour[,6], ylim = c(-1, 1), main=paste("PC",6))## bars proportional to loadings 
+x11()
+barplot(load.tour[,7], ylim = c(-1, 1), main=paste("PC",7))## bars proportional to loadings 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
