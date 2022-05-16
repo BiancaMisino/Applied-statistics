@@ -10,7 +10,7 @@ library(rgl)
 library(carData)
 library(mvtnorm)
 library(ISLR)
-
+library(dummy)
 #levo le cliniche ridondanti
 
 DB<-Database_finale[,-c(1,2,3,4,5,11,24,25)]
@@ -21,13 +21,13 @@ DB<-Database_finale[,-c(1,2,3,4,5,11,24,25)]
 DB[DB[,3]=='M' | DB[,3]=='m',3]<-as.character(1)
 DB[DB[,3]=='F' | DB[,3]=='f',3]<-as.character(0)
 DB[,3]<-as.numeric(unlist(DB[,3]))
-DB[,3]<-factor(DB$Sex)
+DB[,3]<-as.factor(DB$Sex)
 
 #SYNC
 DB[DB[,5]=='sync',5]<-as.character(1)
 DB[DB[,5]=='met' | DB[,5]=='Met',5]<-as.character(0)
 DB[,5]<-as.numeric(unlist(DB[,5]))
-DB[,5]<-factor(DB$sync)
+DB[,5]<-as.factor(DB$sync)
 
 
 #diametro in mm
@@ -35,31 +35,22 @@ DB[,7]<-as.numeric(unlist(DB[,7]))
 
 #bilater
 DB[,9]<-as.numeric(unlist(DB[,9]))
-DB[,9]<-factor(DB$bilater)
+DB[,9]<-as.factor(DB$bilater)
 
 #primary tumor site
-var1=which(DB$Primary_tumor_site=='right') 
-var2=which(DB$Primary_tumor_site=='left')
-var3=which(DB$Primary_tumor_site=='rectum')
+DB$Primary_tumor_site=as.factor(DB$Primary_tumor_site)
+right_primary_tumor_site<-ifelse(DB$Primary_tumor_site=='right',1,0)
+left_primary_tumor_site<-ifelse(DB$Primary_tumor_site=='left',1,0)
 
-DB[var1,4]<-as.character(2)
-DB[var2,4]<-as.character(0)
-DB[var3,4]<-as.character(1)
-DB[,4]<-as.numeric(unlist(DB[,5]))
-DB[,4]<-factor(DB$Primary_tumor_site)
+DB<-data.frame(DB,Left_primary_tumor_site=left_primary_tumor_site,Right_primary_tumor_site=right_primary_tumor_site)
 
-#numero metastasi classi
-var1=which(DB$Numero_metastasi_classi=='Una') 
-var2=which(DB$Numero_metastasi_classi=='due-tre')
-var3=which(DB$Numero_metastasi_classi=='quattro-nove')
-var4=which(DB$Numero_metastasi_classi=='10+') 
+#numero metastasi classi->dummy variables
+DB$Numero_metastasi_classi=as.factor(DB$Numero_metastasi_classi)
+classe1_Numero_metastasi<-ifelse(DB$Numero_metastasi_classi=='Una',1,0)
+classe2_Numero_metastasi<-ifelse(DB$Numero_metastasi_classi=='due-tre',1,0)
+classe3_Numero_metastasi<-ifelse(DB$Numero_metastasi_classi=='quattro-nove',1,0)
 
-DB[var1,6]<-as.character(0)
-DB[var2,6]<-as.character(1)
-DB[var3,6]<-as.character(2)
-DB[var4,6]<-as.character(3)
-DB[,6]<-as.numeric(unlist(Database_finale[,6]))
-DB[,6]<-factor(DB$Numero_metastasi_classi)
+DB<-data.frame(DB,classe1_Numero_metastasi=classe1_Numero_metastasi,classe2_Numero_metastasi=classe2_Numero_metastasi,classe3_Numero_metastasi=classe3_Numero_metastasi)
 
 #risposta radiologica
 DB[DB[,19]=='PR',19]<-as.character(1)
@@ -69,8 +60,20 @@ DB[,19]<-as.numeric(unlist(DB[,19]))
 #M_HU_CONVENTIONAL
 DB[,70]<-as.numeric(unlist(DB[,70]))
 
-#interval grater 30 days
-DB[,1]<-factor(DB$`Interval _greater_30 days`)
+#interval greater 30 days
+DB[,1]<-factor(DB$Interval._greater_30.days)
+
+#linee di chemioterapia
+DB[DB[,17]==1 ,17]<-0
+DB[DB[,17]==2,17]<-1
+
+DB[,17]<-as.factor(DB$Linee_di_chemioterapia)
+
+#TGR:0->(1,3), 1->5
+DB[DB[,20]==1 | DB[,20]==3 ,20]<-0
+DB[DB[,20]==5,20]<-1
+
+
 
 #variabili da 10 a 20
 DB[,10]<-factor(DB$KRAS)
@@ -83,86 +86,98 @@ DB[,16]<-factor(DB$ANTI_EGFR)
 DB[,17]<-factor(DB$Linee_di_chemioterapia)
 DB[,18]<-factor(DB$greater_6_cicli)
 DB[,19]<-factor(DB$Risposta_radiologica)
-DB[,20]<-factor(DB$TRG)
+
                   
 
 
+############# STEPWISE CLINICHE+CORE CON RISPOSTA RADIOLOGICA##########################
+library(leaps)
+library(ISLR)
 
 
 
+DB_core_cliniche<-DB[,c(1:68,117:121)]
 
+#elimino variabili del core correlate :
+DB_core_cliniche<-DB_core_cliniche[,-c(25,26,27,29,31,38,41,43,47,49,50,51,53,54,55,58,61,64,65,66,67)]
 
+#elimino variabili NA e quelle delle dummy
+DB_core_cliniche<-DB_core_cliniche[,-c(4,6,10,11,12)]
 
+#standardizzo:
+DB_core_cliniche[,c(2,5,6,16:42)]<-scale(DB_core_cliniche[,c(2,5,6,16:42)],center=FALSE)
 
+regfit.step <- regsubsets(TRG~.,data=DB_core_cliniche,nvmax=47,method="forward")
+summary(regfit.step)
 
+which.max(summary(regfit.step)$adjr2)
+coef(regfit.step,19)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-help(DB_cli_cor)
-names(DB_cli_cor)
-dim(DB_cli_cor)
-
-unlist(DB_cli_cor)
-as.double(DB_cli_cor)
-
-
-
-###  Subset Selection Methods
-help(regsubsets)
-
-# Forward and Backward Stepwise Selection
-regfit.fwd <- regsubsets(TRG~.,data=DB_cli_cor,method="forward")
-summary(regfit.fwd)
-
-
+max(summary(regfit.step)$adjr2)
 
 
 x11(height=7,width=14)
 par(mfrow=c(1,3))
-plot(summary(regfit.fwd)$rsq,xlab="Number of Variables",ylab="R-squared",type="b")
-plot(summary(regfit.fwd)$adjr2,xlab="Number of Variables",ylab="Adjusted RSq",type="b")
-plot(summary(regfit.fwd)$rss,xlab="Number of Variables",ylab="RSS",type="b")
+plot(summary(regfit.step)$rsq,xlab="Number of Variables",ylab="R-squared",type="b")
+plot(summary(regfit.step)$adjr2,xlab="Number of Variables",ylab="Adjusted RSq",type="b")
+plot(summary(regfit.step)$rss,xlab="Number of Variables",ylab="RSS",type="b")
 
 x11()
-plot(regfit.fwd,scale="r2",main="Forward Stepwise Selection")
+plot(regfit.step,scale="r2",main="Stepwise Selection")
 
 x11()
-plot(regfit.fwd,scale="adjr2",main="Forward Stepwise Selection")
+plot(regfit.step,scale="adjr2",main="Stepwise Selection")
+reg.summary <- summary(regfit.step)
+which.max(regfit.step.summary$adjr2)
+coef(regfit.step,19)
+
+
+############# STEPWISE CLINICHE+CORE SENZA RISPOSTA RADIOLOGICA##########################
+
+
+library(leaps)
+library(ISLR)
 
 
 
-regfit.bwd <- regsubsets(Salary~.,data=Hitters,nvmax=19,method="backward")
-summary(regfit.bwd)
+DB_core_cliniche2<-DB[,c(1:68,117:121)]
+
+#elimino variabili del core correlate :
+DB_core_cliniche2<-DB_core_cliniche2[,-c(25,26,27,29,31,38,41,43,47,49,50,51,53,54,55,58,61,64,65,66,67)]
+
+#elimino variabili NA e quelle delle dummy
+DB_core_cliniche2<-DB_core_cliniche2[,-c(4,6,10,11,12,19)]
+
+#standardizzo:
+DB_core_cliniche2[,c(2,5,6,15:41)]<-scale(DB_core_cliniche2[,c(2,5,6,15:41)],center=FALSE)
+
+regfit.step2 <- regsubsets(TRG~.,data=DB_core_cliniche2,nvmax=47,method="forward")
+summary(regfit.step2)
+
+which.max(summary(regfit.step2)$adjr2)
+coef(regfit.step2,26)
+
+max(summary(regfit.step2)$adjr2)
+
 
 x11(height=7,width=14)
 par(mfrow=c(1,3))
-plot(summary(regfit.bwd)$rsq,xlab="Number of Variables",ylab="R-squared",type="b")
-plot(summary(regfit.bwd)$adjr2,xlab="Number of Variables",ylab="Adjusted RSq",type="b")
-plot(summary(regfit.bwd)$rss,xlab="Number of Variables",ylab="RSS",type="b")
+plot(summary(regfit.step2)$rsq,xlab="Number of Variables",ylab="R-squared",type="b")
+plot(summary(regfit.step2)$adjr2,xlab="Number of Variables",ylab="Adjusted RSq",type="b")
+plot(summary(regfit.step2)$rss,xlab="Number of Variables",ylab="RSS",type="b")
 
 x11()
-plot(regfit.bwd,scale="r2",main="Backward Stepwise Selection")
+plot(regfit.step,scale="r2",main="Stepwise Selection")
 
 x11()
-plot(regfit.bwd,scale="adjr2",main="Backward Stepwise Selection")
+plot(regfit.step,scale="adjr2",main="Stepwise Selection")
+reg.summary <- summary(regfit.step)
+which.max(reg.summary$adjr2)
+coef(regfit.step,19)
 
 
-coef(regfit.full,7) # Exhaustive search
-coef(regfit.fwd,7)  # Forward Stepwise Selection
-coef(regfit.bwd,7)  # Backward Stepwise Selection
 
-graphics.off()
+
+
+
+
