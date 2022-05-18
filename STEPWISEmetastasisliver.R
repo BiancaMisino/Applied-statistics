@@ -11,6 +11,12 @@ library(carData)
 library(mvtnorm)
 library(ISLR)
 library(dummy)
+library(ROCR)
+library(glmnet)
+library(tidyverse)
+library(MLmetrics)
+library(caret)
+
 #levo le cliniche ridondanti
 
 DB<-Database_finale[,-c(1,2,3,4,5,11,24,25)]
@@ -130,6 +136,51 @@ plot(regfit.step,scale="adjr2",main="Stepwise Selection")
 reg.summary <- summary(regfit.step)
 which.max(regfit.step.summary$adjr2)
 coef(regfit.step,19)
+
+
+#### ALTRO METODO CON COMANDO STEP
+
+DB_core_cliniche$TRG<-factor(DB_core_cliniche$TRG,c(0,1),c(0,1))
+
+##cross validation
+k <- 10
+
+set.seed(1)
+folds <- sample(1:k,nrow(DB_core_cliniche),replace=TRUE)
+folds
+table(folds)
+k <- 10
+
+
+
+
+accuracy.cv<-matrix(NA,1,k)
+for (j in 1:10) {
+  reg0<-glm(TRG~1,data=DB_core_cliniche[folds!=j,],family = binomial)
+  reg1<-glm(TRG~.,data=DB_core_cliniche[folds!=j,],family = binomial)
+  best.fit<-step(reg0,scope=formula(reg1), direction="forward",k=2)
+  probabilities <- predict(best.fit,newdata=DB_core_cliniche[folds==j,],type = 'response')
+  #andrebbe messo la frequenza di trg=1
+  predicted <- ifelse(probabilities > 0.68, "1","0")
+  cm<-confusionMatrix(as.factor(predicted),as.factor(DB_core_cliniche[folds==j,]$TRG))
+  accuracy.cv[j]<-cm$overall[1]
+}
+
+which.max(accuracy.cv)
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
 
 
 ############# STEPWISE CLINICHE+CORE SENZA RISPOSTA RADIOLOGICA##########################
