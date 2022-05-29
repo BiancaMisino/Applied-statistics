@@ -109,8 +109,8 @@ variables
 model<-glm(TRG ~ #da mettere le variabili 
              ,data=DB_core_cliniche,family = binomial)
 CI<-confint(model, level = 0.95)
-odds.ratio<-matrix(NA,1,model$rank - 1)
-for (i in 1 :model$rank - 1){
+odds.ratio<-matrix(NA,1,model$rank)
+for (i in 1 :model$rank ){
   odds.ratio[i]=exp( coef( model )[ i ] )
 }
 odds.ratio
