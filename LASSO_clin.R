@@ -105,8 +105,8 @@ DB_cliniche<-DB[,c(1:15,70:74)]
 
 ######################### CASO A TRG:(1,3)->0 & (5)->1 #############################################                  
 #TGR:0->(1,3), 1->5
-DB_cliniche[DB_cliniche[,15]==1 | DB_cliniche[,15]==3 ,15]<-0
-DB_cliniche[DB_cliniche[,15]==5,15]<-1
+DB_cliniche[DB[,15]==1 | DB[,15]==3 ,15]<-0
+DB_cliniche[DB[,15]==5,15]<-1
 DB_cliniche$TRG<-factor(DB_cliniche$TRG,c(0,1),c(0,1))
 
 # calcolo la percentuale di TRG=1 sul totale dei dati
@@ -121,7 +121,7 @@ ratio_of_1
 x <- model.matrix(TRG ~., DB_cliniche)[,-1]
 y <- factor(DB_cliniche$TRG) 
 
-
+set.seed(23)
 cv.lasso <- cv.glmnet(x, y, family = "binomial",type.measure = "auc")
 cv.lasso$lambda.min
 c<-coef(cv.lasso,s='lambda.min',exact=TRUE)
@@ -130,10 +130,10 @@ variables<-row.names(c)[inds]
 variables
 
 
-model<-glm(TRG ~ Interval._greater_30.days+Sex+sync+Diametro_in_mm+CEA+bilater+OXALIPLATINO+
-                 IRINOTECAN+ANTI_VEGF+ANTI_EGFR+Linee_di_chemioterapia+greater_6_cicli+Risposta_radiologica+
-                 Left_primary_tumor_site+classe1_Numero_metastasi,
-                 data=DB_cliniche,family = binomial)
+model<-glm(TRG ~ Interval._greater_30.days+sync+Diametro_in_mm+CEA+bilater+OXALIPLATINO+
+             IRINOTECAN+ANTI_VEGF+ANTI_EGFR+Linee_di_chemioterapia+greater_6_cicli+Risposta_radiologica+
+             Left_primary_tumor_site+classe1_Numero_metastasi,
+           data=DB_cliniche,family = binomial)
 
 
 #intervalli di confidenza dei beta
@@ -154,6 +154,14 @@ PRROC_obj <- roc.curve(scores.class0 = fit2, weights.class0=as.numeric(paste(DB_
 x11()
 plot(PRROC_obj)
 
+probabilities_train <- predict(model,newdata=DB_cliniche,type = 'response')
+predicted_train <- ifelse(probabilities_train > ratio_of_1, "1","0")
+cm_train<-confusionMatrix(as.factor(predicted_train),DB_cliniche$TRG)
+accuracy_train<-cm_train$overall[1]
+auc_train<-AUC(predicted_train,DB_cliniche$TRG)
+accuracy_train
+auc_train
+
 
 k <- 5
 
@@ -169,10 +177,12 @@ folds[128:169]<-folds_to
 
 accuracy.cv<-matrix(NA,1,k)
 auc.cv<-matrix(NA,1,k)
+accuracy_train.cv<-matrix(NA,1,k)
+auc_train.cv<-matrix(NA,1,k)
 
 for (j in 1:k) {
   
-  model<-glm(TRG~ Interval._greater_30.days+Sex+sync+Diametro_in_mm+CEA+bilater+OXALIPLATINO+
+  model<-glm(TRG~ Interval._greater_30.days+sync+Diametro_in_mm+CEA+bilater+OXALIPLATINO+
                IRINOTECAN+ANTI_VEGF+ANTI_EGFR+Linee_di_chemioterapia+greater_6_cicli+Risposta_radiologica+
                Left_primary_tumor_site+classe1_Numero_metastasi,
              data=DB_cliniche[folds!=j,], family=binomial)
@@ -182,14 +192,26 @@ for (j in 1:k) {
   cm<-confusionMatrix(as.factor(predicted),as.factor(DB_cliniche[folds==j,]$TRG))
   accuracy.cv[j]<-cm$overall[1]
   auc.cv[j]<-AUC(predicted,DB_cliniche[folds==j,]$TRG)
+ 
+  probabilities_train.cv <- predict(model,newdata=DB_cliniche[folds!=j,],type = 'response')
+  predicted_train.cv <- ifelse(probabilities_train.cv > ratio_of_1, "1","0")
+  cm_train.cv<-confusionMatrix(as.factor(predicted_train.cv),DB_cliniche[folds!=j,]$TRG)
+  accuracy_train.cv[j]<-cm_train.cv$overall[1]
+  auc_train.cv[j]<-AUC(predicted_train.cv,DB_cliniche[folds!=j,]$TRG)
+  
 }
-
 
 accuracy.cv
 auc.cv
 
 mean(accuracy.cv)
 mean(auc.cv)
+mean(accuracy_train.cv)
+mean(auc_train.cv)
+
+#accuracy.cv  65% e potrebbe star overfittando perchè accuracy_train.cv è 75%
+#accuracy train su tutto il training set è 72% ma ci servirebbe un test set nuovo per valutare
+
 
 
 
@@ -202,7 +224,7 @@ DB_cliniche<-DB_cliniche[,-c(14)]
 x <- model.matrix(TRG ~., DB_cliniche)[,-1]
 y <- factor(DB_cliniche$TRG) 
 
-
+set.seed(13)
 cv.lasso <- cv.glmnet(x, y, family = "binomial",type.measure = "auc")
 cv.lasso$lambda.min
 c<-coef(cv.lasso,s='lambda.min',exact=TRUE)
@@ -214,7 +236,17 @@ model<-glm(TRG ~ Interval._greater_30.days+ Age+sync+ Diametro_in_mm + CEA + bil
              OXALIPLATINO+IRINOTECAN+ANTI_VEGF+ANTI_EGFR+Linee_di_chemioterapia+greater_6_cicli+
              Left_primary_tumor_site+Right_primary_tumor_site+classe1_Numero_metastasi+
              classe2_Numero_metastasi+classe3_Numero_metastasi,
-                 data=DB_cliniche,family = binomial)
+           data=DB_cliniche,family = binomial)
+
+probabilities_train <- predict(model,newdata=DB_cliniche,type = 'response')
+predicted_train <- ifelse(probabilities_train > ratio_of_1, "1","0")
+cm_train<-confusionMatrix(as.factor(predicted_train),DB_cliniche$TRG)
+accuracy_train<-cm_train$overall[1]
+auc_train<-AUC(predicted_train,DB_cliniche$TRG)
+accuracy_train
+auc_train
+
+
 #curva roc
 fit2<-model$fitted
 PRROC_obj <- roc.curve(scores.class0 = fit2, weights.class0=as.numeric(paste(DB_cliniche$TRG)),
@@ -248,6 +280,8 @@ folds[128:169]<-folds_to
 
 accuracy.cv<-matrix(NA,1,k)
 auc.cv<-matrix(NA,1,k)
+accuracy_train.cv<-matrix(NA,1,k)
+auc_train.cv<-matrix(NA,1,k)
 
 for (j in 1:k) {
   
@@ -262,21 +296,37 @@ for (j in 1:k) {
   cm<-confusionMatrix(as.factor(predicted),as.factor(DB_cliniche[folds==j,]$TRG))
   accuracy.cv[j]<-cm$overall[1]
   auc.cv[j]<-AUC(predicted,DB_cliniche[folds==j,]$TRG)
+  
+  probabilities_train.cv <- predict(model,newdata=DB_cliniche[folds!=j,],type = 'response')
+  predicted_train.cv <- ifelse(probabilities_train.cv > ratio_of_1, "1","0")
+  cm_train.cv<-confusionMatrix(as.factor(predicted_train.cv),DB_cliniche[folds!=j,]$TRG)
+  accuracy_train.cv[j]<-cm_train.cv$overall[1]
+  auc_train.cv[j]<-AUC(predicted_train.cv,DB_cliniche[folds!=j,]$TRG)
+  
 }
-
 
 accuracy.cv
 auc.cv
 
 mean(accuracy.cv)
 mean(auc.cv)
+mean(accuracy_train.cv)
+mean(auc_train.cv)
+
+#accuracy.cv  61% e potrebbe star overfittando perchè accuracy_train.cv è 74%
+#accuracy train su tutto il training set è 72% ma ci servirebbe un test set nuovo per valutare
+
 
 
 
 ######################### CASO A TRG:(1)->0 & (3,5)->1 #############################################                  
+
+# !!!!!!!!!! pulire enviroment e rirunnare fino a riga 103 !!!!!!!!!!!!!!!!
+
+
 #TGR:0->(1), 1->(3,5)
-DB_cliniche[DB_cliniche[,15]==1,15]<-0
-DB_cliniche[DB_cliniche[,15]==5| DB_cliniche[,15]==3 ,15]<-1
+DB_cliniche[DB[,15]==1,15]<-0
+DB_cliniche[DB[,15]==5| DB_cliniche[,15]==3 ,15]<-1
 DB_cliniche$TRG<-factor(DB_cliniche$TRG,c(0,1),c(0,1))
 
 # calcolo la percentuale di TRG=1 sul totale dei dati
@@ -291,14 +341,9 @@ ratio_of_1
 x <- model.matrix(TRG ~., DB_cliniche)[,-1]
 y <- factor(DB_cliniche$TRG) 
 
-
+set.seed(13)
 cv.lasso <- cv.glmnet(x, y, family = "binomial",type.measure = "auc")
 cv.lasso$lambda.min
-x11()
-plot(cv.lasso)
-abline(v=log(cv.lasso$lambda.min), lty=1)
-cv.lasso$lambda.min
-
 c<-coef(cv.lasso,s='lambda.min',exact=TRUE)
 inds<-which(c!=0)
 variables<-row.names(c)[inds]
@@ -310,6 +355,14 @@ model<-glm(TRG ~ Interval._greater_30.days+Age+Sex+sync+Diametro_in_mm+bilater+O
              Risposta_radiologica+Left_primary_tumor_site+Right_primary_tumor_site+
              classe2_Numero_metastasi+classe3_Numero_metastasi,
            data=DB_cliniche,family = binomial)
+
+probabilities_train <- predict(model,newdata=DB_cliniche,type = 'response')
+predicted_train <- ifelse(probabilities_train > ratio_of_1, "1","0")
+cm_train<-confusionMatrix(as.factor(predicted_train),DB_cliniche$TRG)
+accuracy_train<-cm_train$overall[1]
+auc_train<-AUC(predicted_train,DB_cliniche$TRG)
+accuracy_train
+auc_train
 
 
 #intervalli di confidenza dei beta
@@ -338,6 +391,8 @@ folds[128:169]<-folds_to
 
 accuracy.cv<-matrix(NA,1,k)
 auc.cv<-matrix(NA,1,k)
+accuracy_train.cv<-matrix(NA,1,k)
+auc_train.cv<-matrix(NA,1,k)
 
 for (j in 1:k) {
   
@@ -351,6 +406,13 @@ for (j in 1:k) {
   cm<-confusionMatrix(as.factor(predicted),as.factor(DB_cliniche[folds==j,]$TRG))
   accuracy.cv[j]<-cm$overall[1]
   auc.cv[j]<-AUC(predicted,DB_cliniche[folds==j,]$TRG)
+  
+  probabilities_train.cv <- predict(model,newdata=DB_cliniche[folds!=j,],type = 'response')
+  predicted_train.cv <- ifelse(probabilities_train.cv > ratio_of_1, "1","0")
+  cm_train.cv<-confusionMatrix(as.factor(predicted_train.cv),DB_cliniche[folds!=j,]$TRG)
+  accuracy_train.cv[j]<-cm_train.cv$overall[1]
+  auc_train.cv[j]<-AUC(predicted_train.cv,DB_cliniche[folds!=j,]$TRG)
+  
 }
 
 
@@ -359,7 +421,11 @@ auc.cv
 
 mean(accuracy.cv)
 mean(auc.cv)
+mean(accuracy_train.cv)
+mean(auc_train.cv)
 
+#accuracy.cv  69.4%% e possiamo dire che non sta overfittando perchè accuracy_train.cv è 77%
+#accuracy train su tutto il training set è 75% ma ci servirebbe un test set nuovo per valutare
 
 
 #############  SENZA RISPOSTA RADIOLOGICA##########################
@@ -371,7 +437,7 @@ DB_cliniche<-DB_cliniche[,-c(14)]
 x <- model.matrix(TRG ~., DB_cliniche)[,-1]
 y <- factor(DB_cliniche$TRG) 
 
-
+set.seed(1)
 cv.lasso <- cv.glmnet(x, y, family = "binomial",type.measure = "auc")
 cv.lasso$lambda.min
 x11()
@@ -386,8 +452,16 @@ variables
 model<-glm(TRG ~ Interval._greater_30.days+Age+Sex+sync+Diametro_in_mm+
              CEA+bilater+OXALIPLATINO+IRINOTECAN+ANTI_VEGF+ANTI_EGFR+
              Linee_di_chemioterapia+greater_6_cicli+Left_primary_tumor_site+
-             Right_primary_tumor_site+classe2_Numero_metastasi+classe3_Numero_metastasi,
+             Right_primary_tumor_site+classe1_Numero_metastasi+classe2_Numero_metastasi+classe3_Numero_metastasi,
            data=DB_cliniche,family = binomial)
+
+probabilities_train <- predict(model,newdata=DB_cliniche,type = 'response')
+predicted_train <- ifelse(probabilities_train > ratio_of_1, "1","0")
+cm_train<-confusionMatrix(as.factor(predicted_train),DB_cliniche$TRG)
+accuracy_train<-cm_train$overall[1]
+auc_train<-AUC(predicted_train,DB_cliniche$TRG)
+accuracy_train
+auc_train
 
 
 #intervalli di confidenza dei beta
@@ -416,26 +490,39 @@ folds[128:169]<-folds_to
 
 accuracy.cv<-matrix(NA,1,k)
 auc.cv<-matrix(NA,1,k)
+accuracy_train.cv<-matrix(NA,1,k)
+auc_train.cv<-matrix(NA,1,k)
 
 for (j in 1:k) {
   
   model<-glm(TRG~ Interval._greater_30.days+Age+Sex+sync+Diametro_in_mm+
                CEA+bilater+OXALIPLATINO+IRINOTECAN+ANTI_VEGF+ANTI_EGFR+
                Linee_di_chemioterapia+greater_6_cicli+Left_primary_tumor_site+
-               Right_primary_tumor_site+classe2_Numero_metastasi+classe3_Numero_metastasi ,
+               Right_primary_tumor_site+classe1_Numero_metastasi+classe2_Numero_metastasi+classe3_Numero_metastasi ,
              data=DB_cliniche[folds!=j,], family=binomial)
   probabilities <- predict(model,newdata=DB_cliniche[folds==j,],type = 'response')
   predicted <- ifelse(probabilities > ratio_of_1, "1","0")
   cm<-confusionMatrix(as.factor(predicted),as.factor(DB_cliniche[folds==j,]$TRG))
   accuracy.cv[j]<-cm$overall[1]
   auc.cv[j]<-AUC(predicted,DB_cliniche[folds==j,]$TRG)
+  
+  probabilities_train.cv <- predict(model,newdata=DB_cliniche[folds!=j,],type = 'response')
+  predicted_train.cv <- ifelse(probabilities_train.cv > ratio_of_1, "1","0")
+  cm_train.cv<-confusionMatrix(as.factor(predicted_train.cv),DB_cliniche[folds!=j,]$TRG)
+  accuracy_train.cv[j]<-cm_train.cv$overall[1]
+  auc_train.cv[j]<-AUC(predicted_train.cv,DB_cliniche[folds!=j,]$TRG)
 }
-
 
 accuracy.cv
 auc.cv
 
 mean(accuracy.cv)
 mean(auc.cv)
+mean(accuracy_train.cv)
+mean(auc_train.cv)
+
+#accuracy.cv  68% e  accuracy_train.cv è 77%
+#accuracy train su tutto il training set è 75% ma ci servirebbe un test set nuovo per valutare
+#auc.cv 0.55 non bello
 
 
