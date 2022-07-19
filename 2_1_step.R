@@ -266,14 +266,16 @@ PRROC_obj <- roc.curve(scores.class0 = fit2, weights.class0=as.numeric(paste(DB_
                        curve=TRUE)
 x11()
 plot(PRROC_obj)
-
+model$coefficients
 
 #######################################################CASO B#####################################################
 
 ####secondo caso dicotomico TRG ={0,1} (1,3+5)
 DB_cliniche_casob=DB_cliniche_core
-DB_cliniche_casob[DB_cliniche_casob[,11]<3,1] <-0
-DB_cliniche_casob[DB_cliniche_casob[,11]>=3,1] <-1
+DB_cliniche_casob[DB_cliniche_casob[,1]<3,1] <-0
+DB_cliniche_casob[DB_cliniche_casob[,1]>=3,1] <-1
+
+
 
 
 #variables selection
@@ -284,9 +286,60 @@ best.fit$coefficients
 
 summary(best.fit)
 
-### RIMANE SOLO LA RISP RAD
-
 #model selection in 5-fold cv con variabili selezionate nel best fit 
+
+k <- 5
+
+set.seed(1)
+folds_mi <- sample(1:k,nrow(DB_cliniche_casoa[1:127,]),replace=TRUE)
+folds_mi
+folds_to <- sample(1:k,nrow(DB_cliniche_casoa[128:169,]),replace=TRUE)
+folds_to
+table(folds_to)
+folds<-matrix(NA,1,169)
+folds[1:127]<-folds_mi
+folds[128:169]<-folds_to
+
+accuracy.cv<-matrix(NA,1,k)
+auc.cv<-matrix(NA,1,k)
+
+for (j in 1:5) {
+  ###CAMBIA MODELLO OGNI VOLTA
+  model<-glm(TRG ~ GLZLM_ZP + CONVENTIONAL_HUmean + GLCM_Correlation + 
+               SHAPE_Sphericity..only.for.3D.ROI..nz.1.  ,
+             data=DB_cliniche_casoa[folds!=j,], family=binomial)
+  probabilities <- predict(model,newdata=DB_cliniche_casoa[folds==j,],type = 'response')
+  #andrebbe messo la frequenza di trg=1
+  predicted <- ifelse(probabilities > 0.68, "1","0")
+  cm<-confusionMatrix(as.factor(predicted),as.factor(DB_cliniche_casoa[folds==j,]$TRG))
+  
+  accuracy.cv[j]<-cm$overall[1]
+  auc.cv[j]<-AUC(as.numeric(predicted),DB_cliniche_casoa[folds==j,]$TRG)
+}
+accuracy.cv
+auc.cv
+
+mean(accuracy.cv)
+mean(auc.cv)
+
+###CAMBIA MODELLO OGNI VOLTA
+model<-glm(TRG ~ GLZLM_ZP + CONVENTIONAL_HUmean + GLCM_Correlation + 
+             SHAPE_Sphericity..only.for.3D.ROI..nz.1. ,
+           data=DB_cliniche_casoa, family=binomial)
+
+odds.ratio<-matrix(NA,1,model$rank - 1)
+odds.ratio=exp(coef(model))
+
+CI<-confint(model,level=0.95)
+odds.ratio
+CI
+
+fit2<-model$fitted
+PRROC_obj <- roc.curve(scores.class0 = fit2, weights.class0=as.numeric(paste(DB_cliniche_casoa$TRG)),
+                       curve=TRUE)
+x11()
+plot(PRROC_obj)
+model$coefficients
 
 
 #####################################################################################################################
@@ -330,7 +383,7 @@ for (j in 1:5) {
   ###CAMBIA MODELLO OGNI VOLTA  
   model<-glm(TRG ~ NGLDM_Contrast + M_SHAPE_Sphericity..only.for.3D.ROI..nz.1. + 
                SHAPE_Sphericity..only.for.3D.ROI..nz.1. + CONVENTIONAL_HUmean + 
-               M_GLZLM_SZE + M_GLZLM_ZP + M_CONVENTIONAL_HUmean + M_NGLDM_Contrast
+               M_GLZLM_SZE + M_CONVENTIONAL_HUmean + M_NGLDM_Contrast
              ,
              data=DB_cliniche_casoa[folds!=j,], family=binomial)
   probabilities <- predict(model,newdata=DB_cliniche_casoa[folds==j,],type = 'response')
@@ -349,7 +402,7 @@ best.fit$coefficients
 ###CAMBIA MODELLO OGNI VOLTA
 model<-glm(TRG ~ NGLDM_Contrast + M_SHAPE_Sphericity..only.for.3D.ROI..nz.1. + 
              SHAPE_Sphericity..only.for.3D.ROI..nz.1. + CONVENTIONAL_HUmean + 
-             M_GLZLM_SZE + M_GLZLM_ZP + M_CONVENTIONAL_HUmean + M_NGLDM_Contrast
+             M_GLZLM_SZE + M_CONVENTIONAL_HUmean + M_NGLDM_Contrast
            ,data=DB_cliniche_casoa,family = binomial)
 #n=9
 #st.dev<-summary(model)$coefficients[2:10,2]
@@ -373,7 +426,7 @@ PRROC_obj <- roc.curve(scores.class0 = fit2, weights.class0=as.numeric(paste(DB_
                        curve=TRUE)
 x11()
 plot(PRROC_obj)
-
+model$coefficients
 
 #######################################################CASO B#####################################################
 
@@ -411,9 +464,8 @@ auc.cv<-matrix(NA,1,k)
 
 for (j in 1:5) {
   ###CAMBIA MODELLO OGNI VOLTA
-  model<-glm(TRG ~ GLZLM_ZP + CONVENTIONAL_HUmean + GLCM_Correlation + 
-               M_GLZLM_LZE + M_GLZLM_SZE + SHAPE_Compacity.only.for.3D.ROI..nz.1. + 
-               M_NGLDM_Busyness + GLZLM_LZE + M_CONVENTIONAL_HUmax ,
+  model<-glm(TRG ~ GLZLM_ZP + CONVENTIONAL_HUmean + GLCM_Correlation + M_GLZLM_SZE + SHAPE_Compacity.only.for.3D.ROI..nz.1. + 
+               M_NGLDM_Busyness  ,
              data=DB_cliniche_casob[folds!=j,], family=binomial)
   probabilities <- predict(model,newdata=DB_cliniche_casob[folds==j,],type = 'response')
   #andrebbe messo la frequenza di trg=1
@@ -429,9 +481,8 @@ mean(accuracy.cv)
 mean(auc.cv)
 best.fit$coefficients
 ###CAMBIA MODELLO OGNI VOLTA
-model<-glm(TRG ~  GLZLM_ZP + CONVENTIONAL_HUmean + GLCM_Correlation + 
-             M_GLZLM_LZE + M_GLZLM_SZE + SHAPE_Compacity.only.for.3D.ROI..nz.1. + 
-             M_NGLDM_Busyness + GLZLM_LZE + M_CONVENTIONAL_HUmax  ,
+model<-glm(TRG ~  GLZLM_ZP + CONVENTIONAL_HUmean + GLCM_Correlation + M_GLZLM_SZE + SHAPE_Compacity.only.for.3D.ROI..nz.1. + 
+             M_NGLDM_Busyness  ,
            data=DB_cliniche_casob, family=binomial)
 
 
@@ -442,6 +493,13 @@ CI<-confint(model,level=0.95)
 odds.ratio
 CI
 
+fit2<-model$fitted
+PRROC_obj <- roc.curve(scores.class0 = fit2, weights.class0=as.numeric(paste(DB_cliniche_casoa$TRG)),
+                       curve=TRUE)
+x11()
+plot(PRROC_obj)
+
+model$coefficients
 
 #####################################################################################################################
 ################################ SOLO VARIABILI CLINICHE+CORE+MARGIN ################################################
